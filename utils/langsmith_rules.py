@@ -111,12 +111,22 @@ def create_run_rule(
     llm_judge_model: str = "gpt-5.6-luna",
     # If set: route matching runs to this annotation queue.
     add_to_annotation_queue_id: Optional[Union[str, UUID]] = None,
+    # If set: POST matching runs to these webhook URLs (batched per polling window).
+    webhook_urls: Optional[Sequence[str]] = None,
 ) -> dict:
     """Create or replace a run rule on a tracing project.
 
     Returns a dict with `id`, `url` (deep link to the rule in the UI), and the
-    raw `payload` LangSmith stored. Either `llm_judge_prompt` (+schema), or
-    `add_to_annotation_queue_id`, or both, should be provided.
+    raw `payload` LangSmith stored. Provide at least one action: an LLM-as-judge
+    online evaluator (`llm_judge_prompt` + `llm_judge_schema`), an annotation
+    queue (`add_to_annotation_queue_id`), and/or one or more webhooks
+    (`webhook_urls`).
+
+    Note: automation-rule webhooks are **batched per polling window**, and a
+    webhook can fire *before* evaluator scoring lands. If a downstream consumer
+    needs the feedback score, add a feedback filter (e.g.
+    `eq(feedback_key, "correctness")`) or split into two rules so the webhook
+    only fires once the score exists.
     """
     project = client.read_project(project_name=project_name)
 
@@ -139,6 +149,10 @@ def create_run_rule(
     }
     if add_to_annotation_queue_id is not None:
         body["add_to_annotation_queue_id"] = str(add_to_annotation_queue_id)
+    if webhook_urls:
+        # One webhook action per URL. LangSmith POSTs the matched runs (batched
+        # per polling window) to each URL.
+        body["webhooks"] = [{"url": u} for u in webhook_urls]
 
     headers = {
         "x-api-key": client.api_key,

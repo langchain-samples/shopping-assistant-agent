@@ -26,6 +26,8 @@ dependencies = [
     "sqlalchemy>=2.0",
     "tavily-python>=0.7.21",
     "langchain-core>=1.5.3",
+    "databricks-sql-connector>=4.5.0",
+    "unitycatalog-langchain[databricks]>=0.3.0",
 ]
 
 [tool.setuptools]
